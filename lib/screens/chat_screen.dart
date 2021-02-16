@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 // import 'package:modal_progress_hud/modal_progress_hud.dart';
 final _fireStore = Firestore.instance;
+FirebaseUser loggedInUser;
 class ChatScreen extends StatefulWidget {
   static String id = 'Chat_Screen';
   @override
@@ -12,9 +13,9 @@ class ChatScreen extends StatefulWidget {
 
 class _ChatScreenState extends State<ChatScreen> {
   final _auth = FirebaseAuth.instance;
-  FirebaseUser loggedInUser;
-  String message;
   
+  String message;
+  final textEditingController=TextEditingController();
   void getCurrentUserName() async {
     try {
       final user = await _auth.currentUser();
@@ -72,6 +73,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 children: <Widget>[
                   Expanded(
                     child: TextField(
+                      controller: textEditingController,
                       style: TextStyle(
                         color: Colors.black,
                       ),
@@ -83,6 +85,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   ),
                   FlatButton(
                     onPressed: () {
+                      textEditingController.clear();
                       _fireStore.collection('messages').add({
                         'text': message,
                         'sender': loggedInUser.email,
@@ -106,13 +109,14 @@ class _ChatScreenState extends State<ChatScreen> {
 
 class MessageBubble extends StatelessWidget {
   final String sender, text;
-  MessageBubble({this.sender, this.text});
+  final bool isME;
+  MessageBubble({this.sender, this.text,this.isME});
   @override
   Widget build(BuildContext context) {
     return Padding(
       padding: EdgeInsets.all(10.0),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.end,
+        crossAxisAlignment:isME? CrossAxisAlignment.end :CrossAxisAlignment.start,
         children: [
           Text(
             sender,
@@ -122,7 +126,8 @@ class MessageBubble extends StatelessWidget {
           ),
           Material(
             borderRadius: BorderRadius.circular(30),
-            color: Colors.lightBlueAccent,
+            
+            color:isME? Colors.lightBlueAccent : Colors.grey,
             child: Padding(
               padding: EdgeInsets.symmetric(
                 vertical: 10,
@@ -132,7 +137,7 @@ class MessageBubble extends StatelessWidget {
                 '$text ',
                 style: TextStyle(
                   fontSize: 20,
-                  color: Colors.white
+                  color: isME ? Colors.white:Colors.black,
                 ),
               ),
             ),
@@ -156,19 +161,22 @@ class MessageBubble extends StatelessWidget {
                       ),
                     );
                   }
-                  final messages = snapshot.data.documents;
+                  final messages = snapshot.data.documents.reversed;
                   List<MessageBubble> messageWidgets = [];
                   for (var message in messages) {
                     final messageText = message.data['text'];
                     final messageSender = message.data['sender'];
+                    final currentUser=loggedInUser.email;
                     final messageWidget = MessageBubble(
                       sender: messageSender,
                       text: messageText,
+                      isME: currentUser==messageSender,
                     );
                     messageWidgets.add(messageWidget);
                   }
                   return Expanded(
                     child: ListView(
+                      reverse: true,
                       children: messageWidgets,
                     ),
                   );
